@@ -238,6 +238,46 @@ static HIDFUNC(HIDLoopInfoAction) {
     return 0;
 }
 
+static HIDFUNC(HIDMainLoopStart) {
+    main_loop_data* data = (main_loop_data*)arg;
+
+    data->first = svcGetSystemTick();
+    // Check loop cnt
+    if (g_player.playerConfig.loopcheck > 0) {
+        if (g_player.finfo.loop_count > g_player.playerConfig.loopcheck) {
+            Player_ClearConsoles(&g_player);
+            gotoxy(0, 0);
+            if (Player_NextSong(&g_player) != 0) {
+                // This should not happen.
+                printf("Error on loadSong !!!?\n");
+                sendError("Error on loadsong...?\n", 0xFFFF0003);
+                return -1;
+            }
+            //_debug_pause();
+            Player_ClearConsoles(&g_player);
+            g_player.render_time = g_player.screen_time = 0;
+            data->isBottomScreenPrint = false;
+            data->first = svcGetSystemTick();
+            data->scroll = 0;
+        }
+    }
+    if (!data->isBottomScreenPrint) {
+        Player_PrintTitle(&g_player);
+        data->isBottomScreenPrint = true;
+    }
+    Player_PrintGeneric(&g_player);
+
+    return 0;
+}
+
+static HIDFUNC(HIDMainLoopEnd) {
+    main_loop_data* data = (main_loop_data*)arg;
+
+    g_player.screen_time = svcGetSystemTick() - data->first;
+
+    return 0;
+}
+
 static HIDFUNC(HIDLoopConfigAction) {
     main_loop_data* data = (main_loop_data*)arg;
 
@@ -269,25 +309,27 @@ static void printhelp() {
 }
 
 static HIDBind infoscreen[] = {
-    {0, true, &HIDLoopInfoAction, NULL},
-    {KEY_START, true, &ButtonStop, NULL},
-    {KEY_SELECT, true, &ButtonPause, NULL},
-    {KEY_UP, true, &ButtonUpScroll, NULL},
-    {KEY_DOWN, true, &ButtonDownScroll, NULL},
-    {KEY_RIGHT, true, &ButtonNextSong, NULL},
-    {KEY_LEFT, true, &ButtonPrevSong, NULL},
-    {KEY_Y, true, &ButtonConfigScreen, NULL},
-    {KEY_A, true, &ButtonNextInfoScreen, NULL},
-    {KEY_R, true, &ButtonPlaylistScreen, NULL},
+    {0, true, false, &HIDMainLoopStart, NULL},
+    {0, true, true, &HIDLoopInfoAction, NULL},
+    {KEY_START, true, true, &ButtonStop, NULL},
+    {KEY_SELECT, true, true, &ButtonPause, NULL},
+    {KEY_UP, true, true, &ButtonUpScroll, NULL},
+    {KEY_DOWN, true, true, &ButtonDownScroll, NULL},
+    {KEY_RIGHT, true, true, &ButtonNextSong, NULL},
+    {KEY_LEFT, true, true, &ButtonPrevSong, NULL},
+    {KEY_Y, true, true, &ButtonConfigScreen, NULL},
+    {KEY_A, true, true, &ButtonNextInfoScreen, NULL},
+    {KEY_R, true, true, &ButtonPlaylistScreen, NULL},
+    {0, true, false, &HIDMainLoopEnd, NULL},
     {HIDBINDNULL}};
 
 static HIDBind configscreen[] = {
-    {0, true, &HIDLoopConfigAction, NULL},
-    {KEY_START, true, &ButtonStop, NULL},
-    {KEY_SELECT, true, &ButtonPause, NULL},
-    {KEY_UP, true, &ButtonUpScroll, NULL},
-    {KEY_DOWN, true, &ButtonDownScroll, NULL},
-    {KEY_Y, true, &ButtonConfigSaveAndExit, NULL},
+    {0, true, true, &HIDLoopConfigAction, NULL},
+    {KEY_START, true, true, &ButtonStop, NULL},
+    {KEY_SELECT, true, true, &ButtonPause, NULL},
+    {KEY_UP, true, true, &ButtonUpScroll, NULL},
+    {KEY_DOWN, true, true, &ButtonDownScroll, NULL},
+    {KEY_Y, true, true, &ButtonConfigSaveAndExit, NULL},
     {HIDBINDNULL}};
 
 int main(int argc, char* argv[]) {
@@ -299,15 +341,11 @@ int main(int argc, char* argv[]) {
 
     main_loop_data data = {0, 0, 0, 0b00000000, false, false};
 
-    infoscreen[0].arg = configscreen[0].arg = (void*)&data;
-    infoscreen[3].arg = configscreen[3].arg = (void*)&data;
-    infoscreen[4].arg = configscreen[4].arg = (void*)&data;
-    infoscreen[5].arg = (void*)&data;
-    infoscreen[6].arg = (void*)&data;
-    infoscreen[7].arg = (void*)&data;
-    infoscreen[8].arg = (void*)&data;
-    infoscreen[9].arg = (void*)&data;
-    configscreen[5].arg = (void*)&data;
+    for (int i = 0; i < sizeof(infoscreen)/sizeof(infoscreen[0])-1; i++)
+        infoscreen[i].arg = (void*)&data;
+
+    for (int i = 0; i < sizeof(configscreen)/sizeof(configscreen[0])-1; i++)
+        configscreen[i].arg = (void*)&data;
 
     if (R_FAILED(HIDMapper_SetMapping(infoscreen, false))) {
         printf("HID Fail.\n");
@@ -317,35 +355,8 @@ int main(int argc, char* argv[]) {
     while (aptMainLoop() && !g_player.terminate_flag) {
         gspWaitForVBlank();
         gfxSwapBuffers();
-        data.first = svcGetSystemTick();
-        // Check loop cnt
-        if (g_player.playerConfig.loopcheck > 0) {
-            if (g_player.finfo.loop_count > g_player.playerConfig.loopcheck) {
-                Player_ClearConsoles(&g_player);
-                gotoxy(0, 0);
-                if (Player_NextSong(&g_player) != 0) {
-                    // This should not happen.
-                    printf("Error on loadSong !!!?\n");
-                    sendError("Error on loadsong...?\n", 0xFFFF0003);
-                    break;
-                }
-                //_debug_pause();
-                Player_ClearConsoles(&g_player);
-                g_player.render_time = g_player.screen_time = 0;
-                data.isBottomScreenPrint = false;
-                data.first = svcGetSystemTick();
-                data.scroll = 0;
-            }
-        }
-        if (!data.isBottomScreenPrint) {
-            Player_PrintTitle(&g_player);
-            data.isBottomScreenPrint = true;
-        }
-        Player_PrintGeneric(&g_player);
 
         if (R_FAILED(HIDMapper_RunFrame())) break;
-
-        g_player.screen_time = svcGetSystemTick() - data.first;
     }
 
     HIDMapper_ClearMapping();

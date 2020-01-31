@@ -41,15 +41,18 @@ static HIDFUNC(ButtonStop) {
     return 1;
 }
 
-static HIDFUNC(ButtonNextSong) {
+static HIDFUNC(ButtonSwapSong) {
     main_loop_data* data = (main_loop_data*)arg;
 
     if (frame.held & KEY_L) {
-        Player_NextSubSong(&g_player);
+        if (frame.pressed & KEY_RIGHT)
+            Player_NextSubSong(&g_player);
+        else
+            Player_PrevSubSong(&g_player);
     } else {
         Player_ClearConsoles(&g_player);
         gotoxy(0, 0);
-        if (Player_NextSong(&g_player) != 0) {
+        if (((frame.pressed & KEY_RIGHT) ? Player_NextSong(&g_player) : Player_PrevSong(&g_player)) != 0) {
             printf("Error on loadSong !!!?\n");
             return -1;
         };
@@ -64,47 +67,24 @@ static HIDFUNC(ButtonNextSong) {
     return 1;
 }
 
-static HIDFUNC(ButtonPrevSong) {
-    main_loop_data* data = (main_loop_data*)arg;
-
-    if (frame.held & KEY_L) {
-        Player_PrevSubSong(&g_player);
-    } else {
-        Player_ClearConsoles(&g_player);
-        gotoxy(0, 0);
-        if (Player_PrevSong(&g_player) != 0) {
-            printf("Error on loadSong !!!?\n");
-            return -1;
-        };
-        Player_ClearConsoles(&g_player);
-        g_player.render_time = g_player.screen_time = 0;
-        data->first = svcGetSystemTick();
-        data->scroll = 0;
-        data->isPrint = false;
-        data->isBottomScreenPrint = false;
-    }
-    return 1;
-}
-
-static HIDFUNC(ButtonUpScroll) {
+static HIDFUNC(ButtonUpDownScroll) {
     main_loop_data* data = (main_loop_data*)arg;
 
     data->isPrint = false;
     if (frame.held & KEY_L) {
-        if (data->subscroll > 0) data->subscroll--;
-    } else if (data->scroll > 0)
-        data->scroll--;
-    return 0;
-}
-
-static HIDFUNC(ButtonDownScroll) {
-    main_loop_data* data = (main_loop_data*)arg;
-
-    data->isPrint = false;
-    if (frame.held & KEY_L) {
-        data->subscroll++;
+        if (frame.pressed & KEY_UP) {
+            if (data->subscroll > 0)
+                data->subscroll--;
+        } else {
+            data->subscroll++;
+        }
     } else {
-        data->scroll++;
+        if (frame.pressed & KEY_UP) {
+            if (data->scroll > 0)
+                data->scroll--;
+        } else {
+            data->scroll++;
+        }
     }
     return 0;
 }
@@ -313,10 +293,8 @@ static HIDBind infoscreen[] = {
     {0, true, true, &HIDLoopInfoAction, NULL},
     {KEY_START, true, true, &ButtonStop, NULL},
     {KEY_SELECT, true, true, &ButtonPause, NULL},
-    {KEY_UP, true, true, &ButtonUpScroll, NULL},
-    {KEY_DOWN, true, true, &ButtonDownScroll, NULL},
-    {KEY_RIGHT, true, true, &ButtonNextSong, NULL},
-    {KEY_LEFT, true, true, &ButtonPrevSong, NULL},
+    {KEY_UP | KEY_DOWN, true, true, &ButtonUpDownScroll, NULL},
+    {KEY_RIGHT | KEY_LEFT, true, true, &ButtonSwapSong, NULL},
     {KEY_Y, true, true, &ButtonConfigScreen, NULL},
     {KEY_A, true, true, &ButtonNextInfoScreen, NULL},
     {KEY_R, true, true, &ButtonPlaylistScreen, NULL},
@@ -327,8 +305,7 @@ static HIDBind configscreen[] = {
     {0, true, true, &HIDLoopConfigAction, NULL},
     {KEY_START, true, true, &ButtonStop, NULL},
     {KEY_SELECT, true, true, &ButtonPause, NULL},
-    {KEY_UP, true, true, &ButtonUpScroll, NULL},
-    {KEY_DOWN, true, true, &ButtonDownScroll, NULL},
+    {KEY_UP | KEY_DOWN, true, true, &ButtonUpDownScroll, NULL},
     {KEY_Y, true, true, &ButtonConfigSaveAndExit, NULL},
     {HIDBINDNULL}};
 

@@ -26,11 +26,15 @@ typedef struct {
     uint64_t first;
     int scroll;
     int subscroll;
-    int config_value;
     uint8_t info_flag;
     bool isPrint;
     bool isBottomScreenPrint;
 } main_loop_data;
+
+typedef struct {
+    main_loop_data *main;
+    int listscroll;
+} config_loop_data;
 
 static HIDBind infoscreen[];
 static HIDBind configscreen[];
@@ -127,22 +131,19 @@ static HIDFUNC(ButtonConfigSaveAndExit) {
     data->isBottomScreenPrint = false;
     data->info_flag = 0;
     data->scroll = 0;
-    data->config_value = 0;
+    data->subscroll = 0;
+
+    Player_ClearConsoles(&g_player);
 
     return HIDBINDCHANGEDFRAME;
 }
 
-static HIDFUNC(ButtonConfigRight) {
+static HIDFUNC(ButtonConfigLeftRight) {
     main_loop_data* data = (main_loop_data*)arg;
 
-    data->config_value++;
-    return HIDBINDOK;
-}
-
-static HIDFUNC(ButtonConfigLeft) {
-    main_loop_data* data = (main_loop_data*)arg;
-    data->config_value--;
-    return HIDBINDOK;
+    if (frame.pressed & KEY_LEFT) data->subscroll--;
+    else data->subscroll++;
+    return HIDBINDCANCELFRAME;
 }
 
 static HIDFUNC(ButtonPlaylistScreen) {
@@ -166,15 +167,19 @@ static HIDFUNC(ButtonPlaylistScreen) {
 }
 
 static HIDFUNC(ButtonConfigScreen) {
-    main_loop_data* data = (main_loop_data*)arg;
+    config_loop_data* data = (config_loop_data*)arg;
 
     if (R_FAILED(HIDMapper_SetMapping(configscreen, false)))
         return HIDBINDERROR;
 
-    data->isPrint = false;
-    data->isBottomScreenPrint = false;
-    data->info_flag = 16;
-    data->scroll = 0;
+    Player_ClearConsoles(&g_player);
+
+    data->main->isPrint = false;
+    data->main->isBottomScreenPrint = false;
+    data->main->info_flag = 16;
+    data->main->scroll = 0;
+    data->main->subscroll = 1;
+    data->listscroll = 0;
 
     return HIDBINDCHANGEDFRAME;
 }
@@ -263,14 +268,12 @@ static HIDFUNC(HIDMainLoopEnd) {
 }
 
 static HIDFUNC(HIDLoopConfigAction) {
-    main_loop_data* data = (main_loop_data*)arg;
+    config_loop_data* data = (config_loop_data*)arg;
 
-    // todo, do config control actions
-
-    if (!data->isPrint) {
-        Player_ClearTop(&g_player);
-        Player_ConfigsScreen(&g_player, &data->subscroll, &data->config_value);
-        data->isPrint = true;
+    if (!data->main->isPrint || data->main->subscroll != 1) {
+        Player_ConfigsScreen(&g_player, &data->listscroll, &data->main->scroll, data->main->subscroll - 1);
+        data->main->isPrint = true;
+        data->main->subscroll = 1;
     }
 
     return HIDBINDOK;
@@ -310,6 +313,7 @@ static HIDBind configscreen[] = {
     {KEY_START, true, true, &ButtonStop, NULL},
     {KEY_SELECT, true, true, &ButtonPause, NULL},
     {KEY_UP | KEY_DOWN, true, true, &ButtonUpDownScroll, NULL},
+    {KEY_RIGHT | KEY_LEFT, true, true, &ButtonConfigLeftRight, NULL},
     {KEY_Y, true, true, &ButtonConfigSaveAndExit, NULL},
     {HIDBINDNULL}};
 
@@ -321,12 +325,16 @@ int main(int argc, char* argv[]) {
     // Main loop
 
     main_loop_data data = {0, 0, 0, 0b00000000, false, false};
+    config_loop_data confdata = {&data, 0};
 
     for (int i = 0; i < sizeof(infoscreen)/sizeof(infoscreen[0])-1; i++)
         infoscreen[i].arg = (void*)&data;
 
     for (int i = 0; i < sizeof(configscreen)/sizeof(configscreen[0])-1; i++)
         configscreen[i].arg = (void*)&data;
+
+    infoscreen[6].arg = (void*)&confdata;
+    configscreen[0].arg = (void*)&confdata;
 
     if (R_FAILED(HIDMapper_SetMapping(infoscreen, false))) {
         printf("HID Fail.\n");

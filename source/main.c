@@ -38,7 +38,7 @@ static void printhelp();
 
 static HIDFUNC(ButtonStop) {
     g_player.terminate_flag = 1;
-    return 1;
+    return HIDBINDCANCELFRAME;
 }
 
 static HIDFUNC(ButtonSwapSong) {
@@ -54,7 +54,7 @@ static HIDFUNC(ButtonSwapSong) {
         gotoxy(0, 0);
         if (((frame.pressed & KEY_RIGHT) ? Player_NextSong(&g_player) : Player_PrevSong(&g_player)) != 0) {
             printf("Error on loadSong !!!?\n");
-            return -1;
+            return HIDBINDERROR;
         };
         //_debug_pause();
         Player_ClearConsoles(&g_player);
@@ -64,7 +64,7 @@ static HIDFUNC(ButtonSwapSong) {
         data->isPrint = false;
         data->isBottomScreenPrint = false;
     }
-    return 1;
+    return HIDBINDCANCELFRAME;
 }
 
 static HIDFUNC(ButtonUpDownScroll) {
@@ -86,22 +86,23 @@ static HIDFUNC(ButtonUpDownScroll) {
             data->scroll++;
         }
     }
-    return 0;
+    return HIDBINDOK;
 }
 
 static HIDFUNC(ButtonPause) {
     Player_TogglePause(&g_player);
-    return 0;
+    return HIDBINDOK;
 }
 
 static HIDFUNC(ButtonNextInfoScreen) {
     main_loop_data* data = (main_loop_data*)arg;
 
-    int ret = 0;
+    int ret = HIDBINDOK;
 
     if (data->info_flag > 3 && data->info_flag != 8) {
-        if (R_FAILED(HIDMapper_SetMapping(infoscreen, false))) return -1;
-        ret = 1;
+        if (R_FAILED(HIDMapper_SetMapping(infoscreen, false)))
+            return HIDBINDERROR;
+        ret = HIDBINDCHANGEDFRAME;
     }
 
     Player_ClearConsoles(&g_player);
@@ -119,7 +120,8 @@ static HIDFUNC(ButtonConfigSaveAndExit) {
 
     // TODO
 
-    if (R_FAILED(HIDMapper_SetMapping(infoscreen, false))) return -1;
+    if (R_FAILED(HIDMapper_SetMapping(infoscreen, false)))
+        return HIDBINDERROR;
 
     data->isPrint = false;
     data->isBottomScreenPrint = false;
@@ -127,31 +129,32 @@ static HIDFUNC(ButtonConfigSaveAndExit) {
     data->scroll = 0;
     data->config_value = 0;
 
-    return 1;
+    return HIDBINDCHANGEDFRAME;
 }
 
 static HIDFUNC(ButtonConfigRight) {
     main_loop_data* data = (main_loop_data*)arg;
 
     data->config_value++;
-    return 0;
+    return HIDBINDOK;
 }
 
 static HIDFUNC(ButtonConfigLeft) {
     main_loop_data* data = (main_loop_data*)arg;
     data->config_value--;
-    return 0;
+    return HIDBINDOK;
 }
 
 static HIDFUNC(ButtonPlaylistScreen) {
     main_loop_data* data = (main_loop_data*)arg;
 
-    int ret = 0;
+    int ret = HIDBINDOK;
 
     // info and playlist screen share the same layout, only change if need be
     if (data->info_flag > 3 && data->info_flag != 8) {
-        if (R_FAILED(HIDMapper_SetMapping(infoscreen, false))) return -1;
-        ret = 1;
+        if (R_FAILED(HIDMapper_SetMapping(infoscreen, false)))
+            return HIDBINDERROR;
+        ret = HIDBINDCHANGEDFRAME;
     }
 
     data->isPrint = false;
@@ -165,14 +168,15 @@ static HIDFUNC(ButtonPlaylistScreen) {
 static HIDFUNC(ButtonConfigScreen) {
     main_loop_data* data = (main_loop_data*)arg;
 
-    if (R_FAILED(HIDMapper_SetMapping(configscreen, false))) return -1;
+    if (R_FAILED(HIDMapper_SetMapping(configscreen, false)))
+        return HIDBINDERROR;
 
     data->isPrint = false;
     data->isBottomScreenPrint = false;
     data->info_flag = 16;
     data->scroll = 0;
 
-    return 1;
+    return HIDBINDCHANGEDFRAME;
 }
 
 static HIDFUNC(HIDLoopInfoAction) {
@@ -215,7 +219,7 @@ static HIDFUNC(HIDLoopInfoAction) {
             break;
     }
 
-    return 0;
+    return HIDBINDOK;
 }
 
 static HIDFUNC(HIDMainLoopStart) {
@@ -231,7 +235,7 @@ static HIDFUNC(HIDMainLoopStart) {
                 // This should not happen.
                 printf("Error on loadSong !!!?\n");
                 sendError("Error on loadsong...?\n", 0xFFFF0003);
-                return -1;
+                return HIDBINDERROR;
             }
             //_debug_pause();
             Player_ClearConsoles(&g_player);
@@ -247,7 +251,7 @@ static HIDFUNC(HIDMainLoopStart) {
     }
     Player_PrintGeneric(&g_player);
 
-    return 0;
+    return HIDBINDOK;
 }
 
 static HIDFUNC(HIDMainLoopEnd) {
@@ -255,7 +259,7 @@ static HIDFUNC(HIDMainLoopEnd) {
 
     g_player.screen_time = svcGetSystemTick() - data->first;
 
-    return 0;
+    return HIDBINDOK;
 }
 
 static HIDFUNC(HIDLoopConfigAction) {
@@ -269,7 +273,7 @@ static HIDFUNC(HIDLoopConfigAction) {
         data->isPrint = true;
     }
 
-    return 0;
+    return HIDBINDOK;
 }
 
 static void printhelp() {

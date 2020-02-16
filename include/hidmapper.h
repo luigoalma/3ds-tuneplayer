@@ -19,7 +19,7 @@ typedef int (*HIDCall)(HIDFrame frame, void* arg);
 typedef struct {
     uint32_t key; // used as direct bit mask, or set 0 to call always
     bool press;   // false to act on hold, true to act on press
-    bool cancel;  // false if never to cancel, except error canceling.
+    bool cancel;  // false if never to cancel, except error canceling or frame change.
     HIDCall func; // NULL will be ignored, if key is also 0, then it will end loop.
     void* arg;    // argument to pass to function call
 } HIDBind;
@@ -28,6 +28,12 @@ typedef struct {
 // Stop point indicator
 // It's just member values alone
 #define HIDBINDNULL 0, false, true, NULL, NULL
+
+// Return values for Binds
+#define HIDBINDERROR -1
+#define HIDBINDOK 0
+#define HIDBINDCANCELFRAME 1
+#define HIDBINDCHANGEDFRAME 2
 
 // binding should point to an array of binds and end in NULLBIND as last element
 // copy argument should be true for non constant arrays

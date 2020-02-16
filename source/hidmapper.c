@@ -86,14 +86,15 @@ Result HIDMapper_RunFrame() {
             continue;
         }
 
-        int ret = 0;
+        int ret = HIDBINDOK;
         if (!current->key || (current->press ? frame.pressed : frame.held) & current->key)
             ret = current->func(frame, current->arg);
 
         if (ret) {
-            if (ret > 0 && !onlynoncancel) {
+            if (ret > 0) {
                 res = MAKERESULT(RL_INFO, RS_STATUSCHANGED, RM_APPLICATION, RD_CANCEL_REQUESTED);
-                onlynoncancel = true;
+                if (ret != HIDBINDCHANGEDFRAME) onlynoncancel = true;
+                else break;
             } else {
                 res = MAKERESULT(RL_FATAL, RS_INVALIDSTATE, RM_APPLICATION, RD_CANCEL_REQUESTED);
                 break;

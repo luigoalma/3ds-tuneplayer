@@ -406,7 +406,7 @@ void Player_ConfigsScreen(Player* player, int* listscroll, int* position, int up
     if (update)
         cvars[*position].dataupdate(&cvars[*position], ((uint8_t*)&player->playerConfig) + cvars[*position].data_off, update);
 
-    printf("%16s\n", *listscroll ? "^^^^^^^" : "");
+    printf("%28s\n", *listscroll ? "^^^^^^" : "");
 
     for (int freen = 24, pos = *listscroll; pos < configurable_count; ++pos) {
         const configurable_variables* cvar = &cvars[pos];
@@ -417,7 +417,7 @@ void Player_ConfigsScreen(Player* player, int* listscroll, int* position, int up
         }
         freen -= n;
         if (freen < 0 && pos != *position) {
-            if (pos < configurable_count) printf("%16s", "vvvvvvv");
+            if (pos < configurable_count) printf("%28s", "vvvvvv");
             break;
         }
         n = cvar_to_line(cvar, ((uint8_t*)&player->playerConfig) + cvar->data_off, true, pos == *position);
@@ -427,7 +427,7 @@ void Player_ConfigsScreen(Player* player, int* listscroll, int* position, int up
         }
         // same check as before, but without position check
         if (freen < 0) {
-            if (pos < configurable_count) printf("%16s", "vvvvvvv");
+            if (pos < configurable_count) printf("%28s", "vvvvvv");
             break;
         }
     }
